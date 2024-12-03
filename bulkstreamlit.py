@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 from io import StringIO
 
 # Function to assign priority based on URL path
@@ -99,15 +98,11 @@ def assign_batches(df, batch_size):
     df['Batch'] = (df.index // batch_size) + 1
     return df
 
-# Function to create a simple batch list
-def create_simple_batch_list(df):
-    batch_list = ""
-    for batch_num, group in df.groupby('Batch'):
-        batch_list += f"Batch {int(batch_num)}\n"
-        for url in group['Address']:
-            batch_list += f"{url}\n"
-        batch_list += "\n"
-    return batch_list
+# Function to create a simple batch list as CSV
+def create_simple_batch_csv(df):
+    simple_df = df[['Batch', 'Address']].copy()
+    simple_df['Batch'] = 'Batch ' + simple_df['Batch'].astype(str)
+    return simple_df
 
 # Streamlit App Layout
 st.set_page_config(page_title="Bulk Meta Titles & Descriptions Processor", layout="wide")
@@ -166,19 +161,6 @@ if uploaded_titles and uploaded_desc:
             st.subheader("Processed Data")
             st.dataframe(final_df)
 
-            # Visualization: Distribution of Overall Priority
-            st.subheader("Visualization: Distribution of Overall Priority")
-            priority_counts = final_df['Overall_Priority'].value_counts().sort_index()
-            fig_priority = px.bar(
-                x=priority_counts.index,
-                y=priority_counts.values,
-                labels={'x': 'Overall Priority', 'y': 'Number of URLs'},
-                title='Number of URLs per Overall Priority',
-                text=priority_counts.values
-            )
-            fig_priority.update_traces(texttemplate='%{text}', textposition='auto')
-            st.plotly_chart(fig_priority, use_container_width=True)
-
             # Batching Options
             st.sidebar.header("Batching Options")
             batch_size = st.sidebar.number_input("Enter batch size (number of items per batch)", min_value=1, value=100, step=1)
@@ -191,19 +173,6 @@ if uploaded_titles and uploaded_desc:
                     num_batches = final_df_with_batches['Batch'].max()
 
                     st.success(f"Created {int(num_batches)} batch{'es' if num_batches >1 else ''} with up to {batch_size} items each.")
-
-                    # Update Visualization: Distribution of Batches based on user input
-                    st.subheader("Visualization: Distribution of Batches")
-                    batch_counts = final_df_with_batches['Batch'].value_counts().sort_index()
-                    fig_batches_updated = px.bar(
-                        x=batch_counts.index,
-                        y=batch_counts.values,
-                        labels={'x': 'Batch Number', 'y': 'Number of URLs'},
-                        title='Number of URLs per Batch',
-                        text=batch_counts.values
-                    )
-                    fig_batches_updated.update_traces(texttemplate='%{text}', textposition='auto')
-                    st.plotly_chart(fig_batches_updated, use_container_width=True)
 
                     # Display data grouped by batches
                     st.subheader("Batched Data Preview")
@@ -224,13 +193,14 @@ if uploaded_titles and uploaded_desc:
                         mime='text/csv',
                     )
 
-                    # Option 2: Download Simple Batch List as Text
-                    simple_batch_list = create_simple_batch_list(final_df_with_batches)
+                    # Option 2: Download Simple Batch List as CSV
+                    simple_batched_csv = create_simple_batch_csv(final_df_with_batches)
+                    csv_simple = simple_batched_csv.to_csv(index=False).encode('utf-8')
                     st.download_button(
-                        label="Download Simple Batch List",
-                        data=simple_batch_list,
-                        file_name="simple_batched_list.txt",
-                        mime='text/plain',
+                        label="Download Simple Batch List as CSV",
+                        data=csv_simple,
+                        file_name="simple_batched_list.csv",
+                        mime='text/csv',
                     )
 
     except pd.errors.EmptyDataError:
@@ -244,4 +214,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown("© 2024 Calibre Nine | [GitHub Repository]https://github.com/chrisprideC9)")
+st.markdown("© 2024 Calibre Nine | [GitHub Repository](https://github.com/chrisprideC9)")
